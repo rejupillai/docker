@@ -1,0 +1,227 @@
+version: '2'
+
+services:
+
+#------------------------------start of gitlab-ce ------------------------------------------------------
+
+  storage-gitlab :
+    image: busybox
+    volumes: 
+      - /c/Users/pillai/Work/docker/docker-volumes/ci/gitlab/etc/gitlab:/etc/gitlab
+      - /c/Users/pillai/Work/docker/docker-volumes/ci/gitlab/var/log/gitlab:/var/log/gitlab
+      - /c/Users/pillai/Work/docker/docker-volumes/ci/gitlab/var/log/gitlab/reconfigure:/var/log/gitlab/reconfigure
+      - /data/var/opt/gitlab:/var/opt/gitlab
+    environment:
+      - constraint:node==ci
+    container_name: gitlab-data-container
+    command: tail -f /dev/null
+    hostname: storage-gitlab
+    privileged: true
+
+    networks:
+      - overlay-net
+
+
+  gitlab :
+    image: 'gitlab/gitlab-ce'
+   # image: 'busybox'
+
+    depends_on:
+      - storage-gitlab
+    restart: always
+    hostname: 'localhost'
+    privileged: true
+    environment: 
+      - constraint:node==ci
+
+    ports:
+      - '1080:1080'
+      - '9443:443'
+      - '9222:22'
+
+    volumes_from:
+      - storage-gitlab:rw
+    networks:
+      - overlay-net
+    container_name: gitlab
+
+
+
+#------------------ start of jenkins service ---------------------------------------------------------
+
+  storage-jenkins:
+    image: busybox
+    volumes:
+      - /c/Users/pillai/Work/docker/docker-volumes/ci/jenkins/var/jenkins_home:/var/jenkins_home
+   # command: ["chown", "-v", "-R", "1000:1000", "/var/jenkins_home"]
+
+    command: tail -f /dev/null
+    environment:
+      - constraint:node==ci
+   
+    networks:
+      - overlay-net
+    container_name: jenkins-data-container
+    hostname: storage-jenkins
+
+  jenkins:
+    #image: busybox
+   # image: aespinosa/jenkins
+    image: reju/jenkins:v1.0
+    tty: true
+    depends_on:
+      - storage-jenkins
+      - gitlab
+    restart: always
+    ports:
+      - "2080:8080"
+      - "50000:50000"
+    volumes_from:
+      - storage-jenkins:rw
+    environment:
+      - constraint:node==ci
+      - JAVA_OPTS=-Xmx512m
+
+    networks:
+      - overlay-net
+    container_name: jenkins
+
+
+
+#------------------end of jenkins service -----------------------------------------------------------------
+
+
+
+# #------------------start of rundec service -----------------------------------------------------------------
+
+
+# # Provides local storage for rundeck container.
+
+  storage-rundeck:
+    image: busybox
+    volumes: 
+      - /c/Users/pillai/Work/docker/docker-volumes/cd/rundeck/etc/rundeck:/etc/rundeck
+      - /c/Users/pillai/Work/docker/docker-volumes/cd/rundeck/var/rundeck:/var/rundeck
+      - /c/Users/pillai/Work/docker/docker-volumes/cd/rundeck/var/lib/rundeck/.ssh:/var/lib/rundeck/.ssh
+      - /c/Users/pillai/Work/docker/docker-volumes/cd/rundeck/var/lib/mysql:/var/lib/mysql
+      - /c/Users/pillai/Work/docker/docker-volumes/cd/rundeck/var/log/rundeck:/var/log/rundeck
+      - /c/Users/pillai/Work/docker/docker-volumes/cd/rundeck/opt/rundeck-plugins:/opt/rundeck-plugins
+      - /tmp/private-ssh-keys/:/tmp/private-ssh-keys/
+
+    environment:
+      - constraint:node==cd
+    container_name: rundeck-data-container
+    networks:
+      - overlay-net
+    command: tail -f /dev/null
+    hostname: storage-rundeck
+
+
+# Service to start rundeck container with file-system 
+  rundeck:
+    restart: always
+    image: jordan/rundeck:2.6.8
+    #image: busybox
+    depends_on:
+      - storage-rundeck
+    ports:
+      - "3080:4440"
+    volumes_from:
+      - storage-rundeck:rw
+    environment:
+      - constraint:node==cd
+      - SERVER_URL=http://localhost:3080
+    networks:
+      - overlay-net
+    container_name: rundeck
+    hostname: rundeck
+
+# #------------------end of rundeck service -----------------------------------------------------------------
+
+
+
+# #------------------start of worker (tomcat) service -----------------------------------------------------------------
+
+
+# # Provides local storage for application containers.
+
+  # storage-tomcat:
+  #   image: busybox
+  #   volumes: 
+  #     - /c/Users/pillai/Work/docker/docker-volumes/test/tomcat/tmp:/tmp
+
+  #   environment:
+  #     - constraint:node==test
+  #   container_name: storage-tomcat
+
+  #   networks:
+  #     - overlay-net
+  #   command: tail -f /dev/null
+  #   hostname: storage-tomcat
+
+
+# Service worker for running the application  ( node-1 )
+  tomcat:
+    restart: always
+    privileged: true
+ #   build: ../application/tomcat
+    image: reju/tomcat:v2
+    # depends_on:
+    #   - storage-tomcat
+    # volumes_from:
+    #   -  storage-tomcat:rw
+    environment:
+      - constraint:node==test
+      - CATALINA_OUT /logs/catalina.out
+    ports:
+      - "4080:8080"
+    networks:
+      - overlay-net
+    container_name: tomcat
+
+# #------------------end of worker (tomcat) service -----------------------------------------------------------------
+
+networks:
+  overlay-net:
+    driver: overlay
+
+
+
+
+# #------------------------------start of regisry -------------------------------------------------------
+
+
+# # Provides local storage for registry container. Note the contraint, in the current release data-container has to be on the same node where used
+#   storage-registry:
+#     image: busybox
+#     volumes: 
+#       - /c/Users/pillai/Work/docker/docker-volumes/ci/registry/var/lib/registry:/var/lib/registry
+#     environment:
+#       - constraint:node==ci
+#     container_name: registry-data-container
+#     networks:
+#       - overlay-net
+#     command: tail -f /dev/null
+#     hostname: storage-registry
+
+
+# # Provides local registry service to host images within the firewall.
+#   registry:
+#     restart: always
+#     image: registry:2
+#    # image: registry:2
+#     depends_on:
+#       - storage-registry
+#     ports:
+#       - "5000:5000"
+#     volumes_from:
+#       - storage-registry:rw
+#     environment:
+#       - constraint:node==ci
+#     networks:
+#       - overlay-net
+#     container_name: registry
+#     hostname: registry
+
+
+# #------------------------------end of regisry -------------------------------------------------------
