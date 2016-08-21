@@ -25,40 +25,50 @@ setlocal
 for /F "tokens=*" %%i in (.\machines\keyvalue.file) do  @%%i 
 set  servers=%master%%workers%
 set  allnodes=%servers%%kvstore%
-
 echo master   - %master%
 echo workers  - %workers%
 echo kvstore  - %kvstore%
 echo servers  - %servers%
 echo allnodes - %allnodes%
+echo images - %images%
+echo docker-images-host-path=%docker-images-host-path%
 
 @REM Remove master and workers
-rem for %%i in (%allnodes%) do (
-rem 	docker-machine rm %%i --force
-rem  )
+for %%i in (%allnodes%) do (
+	docker-machine rm %%i --force
+ )	
 
 @REM - Step 1 : Create a node for Keystore to be used by Consul  
-rem  
+docker-machine create -d virtualbox  --virtualbox-memory "1048" %kvstore%
+
+@REM - Run the Consul service
+docker-machine env %kvstore%
+@FOR /f "tokens=*" %%i IN ('docker-machine env %kvstore%') DO @%%i
+docker run -d -p "8500:8500" -h "consul" progrium/consul -server -bootstrap
+
+echo "-----------------------Created keystore and running Consul successfully  -----------------------------------------------"
+
+
+
 @REM - Get the generated IP-Addr for the Consul's Keystore
-set kvstore-ip-expr="docker-machine ip kvstore"
+set kvstore-ip-expr="docker-machine ip %kvstore%"
 @FOR /F %%i IN ( '%kvstore-ip-expr%' ) DO  set kvstore-ip=%%i
 
 
-@REM -Step 2 : Create all master machines...
-
 for %%i in (%master%) do (
 
-echo "Creating machine ............" %%i
 docker-machine create -d virtualbox  --virtualbox-memory "2048" --swarm --swarm-master --swarm-discovery="consul://%kvstore-ip%:8500" --engine-label nodename=dh-%%i --engine-opt="cluster-store=consul://%kvstore-ip%:8500" --engine-opt="cluster-advertise=eth1:2376" %%i
 
 )
+
+echo "-----------------------Created swarm master ---------------------------------------------------------------------"
+
 
 docker-machine ls 
 @REM -Step 3 : Create all worker morker machines...
 
 for %%i in (%workers%) do (
 
-echo "Configuring machine ............" %%i
 docker-machine create -d virtualbox  --virtualbox-memory "2048" --swarm  --swarm-discovery="consul://%kvstore-ip%:8500" --engine-label nodename=dh-%%i --engine-opt="cluster-store=consul://%kvstore-ip%:8500" --engine-opt="cluster-advertise=eth1:2376" %%i
 
 
@@ -74,16 +84,28 @@ VBoxManage controlvm %%i natpf1 "%%i_7,tcp,127.0.0.1,7080,,7080"
 
 
 @REM Configure machine for shared folders on Windows
-docker-machine stop %%i
-VBoxManage sharedfolder add %%i --name "%%i"-data --hostpath "%docker-data-host-path%"%%i --automount
-docker-machine start %%i
-
-
-echo "Successfully configured machine ............" %%i
-
+rem docker-machine stop %%i
+rem VBoxManage sharedfolder add %%i --name %%i-data --hostpath "%docker-data-host-path%%%i" --automount
+rem docker-machine start %%i
 
 )
 
+echo "-----------------------Configured NAT Port forwaring and sharedfolder for workers -----------------------------------------"
 
-echo "All machines created successfully ............"
 
+
+@REM Load images from tar-balls
+docker-machine env --swarm  %master%
+@FOR /f "tokens=*" %%i IN ('docker-machine env --swarm %master%') DO @%%i
+
+for %%i in (%images%) do (
+
+	echo " command ---> docker load  ..\docker-images\%%i"
+	docker load -i C:\Users\pillai\Work\docker\docker-images\%%i
+)
+
+
+echo "----------------------------------Loaded all images----------------------------------------------------"
+
+
+ docker-compose -f compose\docker-compose.yml up -d 

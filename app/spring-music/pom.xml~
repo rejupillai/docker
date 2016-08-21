@@ -7,7 +7,7 @@
 
 	<groupId>io.pivotal.cf</groupId>
 	<artifactId>spring-music</artifactId>
-	<version>1.0.1</version>
+	<version>1.0.0</version>
 
 	<name>spring-music</name>
 	<description>Spring Sample Application </description>

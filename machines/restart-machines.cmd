@@ -22,9 +22,9 @@
 @echo off
 setlocal
 
-for /F "tokens=*" %%i in (.\machines\keyvalue.file) do  @%%i 
+for /F "tokens=*" %%i in (.\machines\keyvalue.file) do  @%%i
 set  servers=%master%%workers%
-set  allnodes=%servers%%kvstore%
+set  allnodes=%kvstore%%servers%
 
 echo master   - %master%
 echo workers  - %workers%
@@ -33,15 +33,35 @@ echo servers  - %servers%
 echo allnodes - %allnodes%
 
 
-docker-machine provision kvstore
+
+@REM Stop all nodes
+for %%i in (%allnodes%) do (	
+	echo stop  %%i
+	docker-machine stop  %%i 
+)
+
+
+@REM re-provision all masters
+for %%i in (%master%) do (	
+	echo starting %%i
+    docker-machine start  %%i
+)
+
 
 
 @REM re-provision all master and worker nodes.
-for %%i in (%allnodes%) do (	
+for %%i in (%workers%) do (	
+	echo starting %%i
+	docker-machine start  %%i 
 
-	echo provisioning %%i
-	docker-machine provision %%i 
  )
 
-echo "All machines re-provisioned successfully ............"
 
+
+echo "All machines re-started successfully ............"
+
+
+@REM - Start all services 
+docker-machine env --swarm %master%
+@FOR /f "tokens=*" %%i IN ('docker-machine env --swarm %master%') DO @%%i
+docker-compose -f compose\docker-compose.yml up -d

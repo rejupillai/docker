@@ -23,9 +23,8 @@ services:
 
 
   gitlab :
-    image: 'gitlab/gitlab-ce'
-   # image: 'busybox'
-
+  #  image: 'gitlab/gitlab-ce:latest'
+    image: 'gitlab:stable'
     depends_on:
       - storage-gitlab
     restart: always
@@ -36,8 +35,7 @@ services:
 
     ports:
       - '1080:1080'
-      - '9443:443'
-      - '9222:22'
+ 
 
     volumes_from:
       - storage-gitlab:rw
@@ -53,8 +51,7 @@ services:
     image: busybox
     volumes:
       - /c/Users/pillai/Work/docker/docker-volumes/ci/jenkins/var/jenkins_home:/var/jenkins_home
-   # command: ["chown", "-v", "-R", "1000:1000", "/var/jenkins_home"]
-
+    #command: ["chown", "-v", "-R", "1000:1000", "/var/jenkins_home"]
     command: tail -f /dev/null
     environment:
       - constraint:node==ci
@@ -65,9 +62,8 @@ services:
     hostname: storage-jenkins
 
   jenkins:
-    #image: busybox
    # image: aespinosa/jenkins
-    image: reju/jenkins:v1.0
+    image: jenkins:temp1
     tty: true
     depends_on:
       - storage-jenkins
@@ -85,10 +81,54 @@ services:
     networks:
       - overlay-net
     container_name: jenkins
+    entrypoint: ["java", "-jar", "/opt/jenkins.war"]
+
 
 
 
 #------------------end of jenkins service -----------------------------------------------------------------
+
+
+
+#------------------start of nexus service -----------------------------------------------------------------
+
+  storage-nexus:
+    image: busybox
+    volumes:
+      - /c/Users/pillai/Work/docker/docker-volumes/ci/nexus/data:/sonatype-work
+
+    command: tail -f /dev/null
+    environment:
+      - constraint:node==ci
+   
+    networks:
+      - overlay-net
+    container_name: nexus-data-container
+    hostname: storage-nexus
+
+  nexus:
+   # image: aespinosa/jenkins
+    image: nexus:stable
+    tty: true
+    depends_on:
+      - storage-nexus
+    restart: always
+    ports:
+      - "5080:8081"
+    volumes_from:
+      - storage-nexus:rw
+    environment:
+      - constraint:node==ci
+    networks:
+      - overlay-net
+    container_name: nexus
+
+
+
+#------------------end of nexus service -----------------------------------------------------------------
+
+
+
 
 
 
@@ -106,9 +146,9 @@ services:
       - /c/Users/pillai/Work/docker/docker-volumes/cd/rundeck/var/lib/mysql:/var/lib/mysql
       - /c/Users/pillai/Work/docker/docker-volumes/cd/rundeck/var/log/rundeck:/var/log/rundeck
       - /c/Users/pillai/Work/docker/docker-volumes/cd/rundeck/opt/rundeck-plugins:/opt/rundeck-plugins
-      - /tmp/private-ssh-keys/:/tmp/private-ssh-keys/
+      - /c/Users/pillai/Work/docker/docker-volumes/ssh-keys/:/tmp/ssh-keys
 
-    environment:
+    environment:  
       - constraint:node==cd
     container_name: rundeck-data-container
     networks:
@@ -120,7 +160,7 @@ services:
 # Service to start rundeck container with file-system 
   rundeck:
     restart: always
-    image: jordan/rundeck:2.6.8
+    image: rundeck:stable
     #image: busybox
     depends_on:
       - storage-rundeck
@@ -130,7 +170,7 @@ services:
       - storage-rundeck:rw
     environment:
       - constraint:node==cd
-      - SERVER_URL=http://localhost:3080
+      - SERVER_URL=http://cd:3080  
     networks:
       - overlay-net
     container_name: rundeck
@@ -145,31 +185,31 @@ services:
 
 # # Provides local storage for application containers.
 
-  # storage-tomcat:
-  #   image: busybox
-  #   volumes: 
-  #     - /c/Users/pillai/Work/docker/docker-volumes/test/tomcat/tmp:/tmp
+  storage-tomcat:
+    image: busybox
+    volumes: 
+      - /c/Users/pillai/Work/docker/docker-volumes/ssh-keys/tomcat/root/.ssh/:/root/.ssh
 
-  #   environment:
-  #     - constraint:node==test
-  #   container_name: storage-tomcat
+    environment:
+      - constraint:node==test
+    container_name: storage-tomcat
 
-  #   networks:
-  #     - overlay-net
-  #   command: tail -f /dev/null
-  #   hostname: storage-tomcat
+    networks:
+      - overlay-net
+    command: tail -f /dev/null
+    hostname: storage-tomcat
 
 
 # Service worker for running the application  ( node-1 )
   tomcat:
     restart: always
     privileged: true
- #   build: ../application/tomcat
-    image: reju/tomcat:v2
-    # depends_on:
-    #   - storage-tomcat
-    # volumes_from:
-    #   -  storage-tomcat:rw
+ #   image: reju/tomcat:v2
+    image: tomcat:stable
+    depends_on:
+        - storage-tomcat
+    volumes_from:
+      -  storage-tomcat:rw
     environment:
       - constraint:node==test
       - CATALINA_OUT /logs/catalina.out

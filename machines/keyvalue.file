@@ -1,5 +1,6 @@
-set kvstore=kvstore
-set master=master
-set workers=ci,cd,test,prod
-set docker-data-host-path=C:\Users\pillai\Work\docker\docker-volumes\
-
+set kvstore=kvstore 
+set master=master 
+set workers=ci,cd,test
+set images=tomcat.tar,rundeck.tar,nexus.tar,jenkins.tar,gitlab.tar
+set docker-images-host-path="C:\Users\pillai\Work\docker\docker-images\"
+set docker-data-host-path="C:\Users\pillai\Work\docker\docker-volumes\"
