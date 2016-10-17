@@ -9,16 +9,17 @@
 
 .navbar .container {
     background-color: red;
-    /*Change for demo mixed - DD2270*/
-    /*Change for demo green  - 008a00*/
-    /*Change for demo red - #ff0000 */
+    /*Change for demo red - DD2270*/
+    /*Change for demo green  - DD2270*/
+    /*Change for demo yellow - DD2270 */
+ 
 	
-    background-image: -moz-linear-gradient(top, #ff0000, #006b00);
-    background-image: -ms-linear-gradient(top, #ff0000, #006b00);
-    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ff0000), to(#006b00));
-    background-image: -webkit-linear-gradient(top, #ff0000, #006b00);
-    background-image: -o-linear-gradient(top, #ff0000, #006b00);
-    background-image: linear-gradient(top, #ff0000, #006b00);
+    background-image: -moz-linear-gradient(top, #DD2270, #006b00);
+    background-image: -ms-linear-gradient(top, #DD2270, #006b00);
+    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#DD2270), to(#006b00));
+    background-image: -webkit-linear-gradient(top, #DD2270, #006b00);
+    background-image: -o-linear-gradient(top, #DD2270, #006b00);
+    background-image: linear-gradient(top, #DD2270, #006b00);
 }
 
 .navbar .navbar-brand {
